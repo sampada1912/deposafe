@@ -21,8 +21,9 @@ import json
 import uuid
 from datetime import datetime, date, timedelta
 from typing import Dict, Any, Optional
+from backend.app.core.config import settings
 
-BANK_SIGNING_SECRET = "deposafe-simulated-sfms-secret-key-2026"
+BANK_SIGNING_SECRET = settings.BANK_SIGNING_KEY
 
 class BankTimeoutException(Exception):
     """Raised when simulated CBS Gateway times out (>3000ms)."""

@@ -1,0 +1,49 @@
+services:
+  # ==============================================================================
+  # 1. DepoSafe Backend API Service (FastAPI + Embedded SQLite + Mock Bank)
+  # ==============================================================================
+  - type: web
+    name: deposafe-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+
+    # Persistent disk block (Commented out: Render Free tier uses auto-reseeding ephemeral disk.
+    # To enable persistent storage on Render Paid tiers, uncomment below and set DATA_DIR to /data):
+    # disk:
+    #   name: deposafe-data
+    #   mountPath: /data
+    #   sizeGB: 1
+
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: ENVIRONMENT
+        value: production
+      - key: DATA_DIR
+        value: /app/data_runtime
+      - key: CORS_ORIGINS
+        value: https://deposafe-frontend.onrender.com
+      - key: SECRET_KEY
+        sync: false
+      - key: BANK_SIGNING_KEY
+        sync: false
+
+  # ==============================================================================
+  # 2. DepoSafe Frontend UI Service (Next.js 14)
+  # ==============================================================================
+  - type: web
+    name: deposafe-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NEXT_PUBLIC_API_URL
+        value: https://deposafe-backend.onrender.com/api/v1

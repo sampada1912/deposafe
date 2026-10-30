@@ -1,130 +1,39 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: deposafe-db
-    environment:
-      POSTGRES_USER: deposafe_user
-      POSTGRES_PASSWORD: deposafe_password
-      POSTGRES_DB: deposafe_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U deposafe_user -d deposafe_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    container_name: deposafe-redis
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  minio:
-    image: minio/minio:latest
-    container_name: deposafe-minio
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin_secure_password
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: deposafe-backend
-    environment:
-      - DATABASE_URL=postgresql://deposafe_user:deposafe_password@db:5432/deposafe_db
-      - REDIS_URL=redis://redis:6379/0
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin_secure_password
-      - STORAGE_DIR=/app/storage
     ports:
       - "8000:8000"
-    volumes:
-      - ./storage:/app/storage
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-
-  celery-worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: deposafe-celery-worker
-    command: celery -A backend.app.services.celery_worker.celery_app worker --loglevel=info
     environment:
-      - DATABASE_URL=postgresql://deposafe_user:deposafe_password@db:5432/deposafe_db
-      - REDIS_URL=redis://redis:6379/0
-      - STORAGE_DIR=/app/storage
+      - PORT=8000
+      - ENVIRONMENT=development
+      - DATA_DIR=/app/data_runtime
+      - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,*
     volumes:
-      - ./storage:/app/storage
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  celery-beat:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: deposafe-celery-beat
-    command: celery -A backend.app.services.celery_worker.celery_app beat --loglevel=info
-    environment:
-      - DATABASE_URL=postgresql://deposafe_user:deposafe_password@db:5432/deposafe_db
-      - REDIS_URL=redis://redis:6379/0
-    depends_on:
-      redis:
-        condition: service_healthy
+      - ./data_runtime:/app/data_runtime
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
     container_name: deposafe-frontend
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
     ports:
       - "3000:3000"
-    depends_on:
-      - backend
-
-  mock-bank:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: deposafe-mock-bank
-    command: uvicorn backend.app.mock_bank_app:app --host 0.0.0.0 --port 8001
-    ports:
-      - "8001:8001"
     environment:
-      - BANK_SIGNING_KEY=deposafe-simulated-sfms-secret-key-2026
-
-volumes:
-  postgres_data:
-  minio_data:
+      - PORT=3000
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+    depends_on:
+      backend:
+        condition: service_healthy

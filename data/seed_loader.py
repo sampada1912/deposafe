@@ -60,7 +60,8 @@ def load_synthetic_data_into_db(db: Session, gt_path: str = None):
         ("officer@deposafe.aicte.gov.in", UserRole.VERIFICATION_OFFICER, "Vikramaditya Rao", "North Western Regional Office", "Deputy Director (Inspection)"),
         ("ro.north@deposafe.aicte.gov.in", UserRole.REGIONAL_OFFICER, "Dr. Sunita Deshmukh", "North Western Regional Office", "Regional Officer (NWRO)"),
         ("director.approval@aicte-india.org", UserRole.COMPETENT_AUTHORITY, "Prof. T. G. Sitaram", None, "Competent Authority / Member Secretary AICTE"),
-        ("auditor@deposafe.aicte.gov.in", UserRole.AUDITOR, "Auditor General Team", None, "Vigilance & Compliance Auditor")
+        ("auditor@deposafe.aicte.gov.in", UserRole.AUDITOR, "Auditor General Team", None, "Vigilance & Compliance Auditor"),
+        ("institution1@vidya.edu.in", UserRole.INSTITUTION_USER, "Dr. Ramesh Sharma", "North Western Regional Office", "Principal & Authorized Signatory")
     ]
     for email, role, name, ro, desig in default_users:
         if not db.query(User).filter(User.email == email).first():

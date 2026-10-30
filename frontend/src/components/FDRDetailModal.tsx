@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Language, translations } from "@/lib/translations";
-import { api } from "@/lib/api";
+import { api, STORAGE_BASE_URL } from "@/lib/api";
 import {
   X, ShieldCheck, AlertTriangle, FileText, CheckCircle2,
   Lock, RefreshCw, Upload, Eye, UserCheck, Check, Building,
@@ -402,7 +402,7 @@ export function FDRDetailModal({
               <div className="p-3 bg-white border border-slate-200 rounded-lg flex items-center justify-between">
                 <span className="text-slate-700 font-medium">Uploaded Document: <strong>{latestDoc?.file_name || "v1_SBI_Certificate.pdf"}</strong></span>
                 <a
-                  href={`http://localhost:8000/storage/fdr_${fdrDetail.id}/${latestDoc?.file_name || "v1_SBI_Certificate.pdf"}`}
+                  href={`${STORAGE_BASE_URL}/fdr_${fdrDetail.id}/${latestDoc?.file_name || "v1_SBI_Certificate.pdf"}`}
                   target="_blank"
                   rel="noreferrer"
                   className="bg-aicte-navy hover:bg-aicte-darkNavy text-white font-bold text-xs px-3 py-1.5 rounded flex items-center space-x-1"
