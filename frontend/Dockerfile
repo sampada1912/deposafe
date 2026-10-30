@@ -3,14 +3,17 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
+COPY .browserslistrc ./
 RUN npm ci
 
 COPY . .
 
+# Ensure public folder exists so runner COPY step never fails
+RUN mkdir -p /app/public
+
 # Support baking NEXT_PUBLIC_API_URL into the Next.js production build
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
-ENV BROWSERSLIST_CONFIG=.browserslistrc
 
 RUN npm run build
 
