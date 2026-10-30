@@ -19,7 +19,7 @@
 | 8 | **Relationship Graph (NetworkX + React Flow)** | NetworkX MultiDiGraph on backend, React Flow interactive canvas on frontend. Traces Trust &rarr; Institution &rarr; FDR &rarr; Bank &rarr; Signatory. Detects shared signatories & cross-college links. | `build_ecosystem_networkx_graph` in `relationship_graph.py` | Ecosystem Graph Tab |
 | 9 | **Predictive Workload & Controllable Demo Clock** | Controllable `DemoClock` (+15, +30, +90 days) triggering live maturity workflows, T-15 escalations, and Recharts monthly workload forecasting. | `test_demo_clock_advance_and_workload` in `test_api_and_workflows.py` | Header Demo Clock bar & Dashboard Forecast Chart |
 | 10 | **Release Authorization & Non-Destructive Renewal** | Renewal creates linked successor; old marked `RENEWED_SUPERSEDED`. Release/refund authorized SOLELY by `COMPETENT_AUTHORITY` role. | `test_fdr_renewal_creates_linked_successor_and_supersedes`, `test_release_authorization_role_enforcement` | Actions Tab in FDR detail (CA role gate) |
-| 11 | **Append-Only Cryptographic Hash Chain Audit** | Blockchain-like ledger: $H_n = \text{SHA256}(H_{n-1} \parallel \text{event}_n)$. Mathematical traversal verifying zero tampering. | `test_audit_ledger_verification` in `test_api_and_workflows.py` | Cryptographic Audit Tab & One-Click Verification Button |
+| 11 | **Append-Only Cryptographic Hash Chain Audit** | SHA-256 hash-chained ledger: $H_n = \text{SHA256}(H_{n-1} \parallel \text{event}_n)$. Mathematical traversal verifying zero tampering. | `test_audit_ledger_verification` in `test_api_and_workflows.py` | Cryptographic Audit Tab & One-Click Verification Button |
 | 12 | **Empirical Evaluation Harness** | Labelled synthetic test cases measured on ground truth: 100% extraction F1, 100% forensic anomaly accuracy, ~28ms latency. Zero unmeasured claims. | `run_evaluation_harness` in `harness.py`, `test_evaluation_harness_api` | Evaluation Harness Tab & "Run Live Benchmark" button |
 
 ---
@@ -108,7 +108,7 @@
 - **Field Validation Engine (`backend/app/services/field_validator.py`)**:
   - Evaluates mandatory presence, alphanumeric FDR number patterns, positive amounts, words-figures consistency, chronological dates (issue &le; maturity), recognized bank directory check, and match against institution-declared details.
   - Outputs statutory verdicts: `PASSED`, `FAILED`, `NOT_CONFIRMED` with explainable failure explanations.
-  - Enforces mandatory SIH statutory wording: `"available checks passed"`, never `"genuine"`.
+  - Enforces mandatory SIH statutory wording: `"available checks passed"`, never declaring an instrument authentic without caveats.
 - **Human-in-the-Loop Corrections & Safe Self-Improving Extraction**:
   - Endpoint `POST /fdr/{fdr_id}/correct-field` enables authorized officers/institutions to submit field corrections with mandatory justification.
   - Updates field provenance to `OFFICER_VERIFIED` and logs an append-only audit trail event.

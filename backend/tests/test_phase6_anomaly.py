@@ -6,7 +6,7 @@ import numpy as np
 
 from backend.app.main import app
 from backend.app.core.database import SessionLocal
-from backend.app.models.deposafe_models import FDR, User, Institution, FDRDocument
+from backend.app.models.deposafe_models import FDR, User, Institution, FDRDocument, FDRStatus, UserRole
 from backend.app.services.duplicate_detector import DuplicateDetector
 from backend.app.services.forensics_service import DigitalForensicsAnalyzer
 from backend.app.services.relationship_graph import build_ecosystem_networkx_graph
@@ -18,9 +18,31 @@ client = TestClient(app)
 @pytest.fixture(scope="module", autouse=True)
 def setup_phase6_data():
     db = SessionLocal()
-    heroes = db.query(FDR).filter(FDR.fdr_number == "BNB-DEL-HERO-1000").all()
-    if len(heroes) < 2:
+    h = db.query(FDR).filter(FDR.fdr_number == "BNB-DEL-HERO-1000").first()
+    if not h:
         load_synthetic_data_into_db(db)
+        h = db.query(FDR).filter(FDR.fdr_number == "BNB-DEL-HERO-1000").first()
+
+    # Ensure Hero duplicate collision partner exists in DB for cross-institution test
+    heroes = db.query(FDR).filter(FDR.fdr_number == "BNB-DEL-HERO-1000").all()
+    if len(heroes) < 2 and h:
+        other_inst = db.query(Institution).filter(Institution.id != h.institution_id).first()
+        h2 = FDR(
+            internal_fdr_id="FDR-INT-HERO-DUP",
+            institution_id=other_inst.id,
+            bank_name=h.bank_name,
+            branch_name=h.branch_name,
+            ifsc_code=h.ifsc_code,
+            fdr_number=h.fdr_number,
+            amount=h.amount,
+            issue_date=h.issue_date,
+            maturity_date=h.maturity_date,
+            tenure_months=h.tenure_months,
+            status=FDRStatus.UNDER_SCRUTINY
+        )
+        db.add(h2)
+        db.commit()
+
     # Reset officer override state on hero
     h = db.query(FDR).filter(FDR.fdr_number == "BNB-DEL-HERO-1000").first()
     if h:
@@ -30,6 +52,18 @@ def setup_phase6_data():
         db.commit()
     db.close()
     yield
+    # Clean up test collision
+    db = SessionLocal()
+    dup = db.query(FDR).filter(FDR.internal_fdr_id == "FDR-INT-HERO-DUP").first()
+    if dup:
+        db.delete(dup)
+    h = db.query(FDR).filter(FDR.fdr_number == "BNB-DEL-HERO-1000").first()
+    if h:
+        h.officer_override = False
+        h.officer_override_justification = None
+        h.review_priority_score = None
+    db.commit()
+    db.close()
 
 def get_officer_token() -> str:
     res = client.post("/api/v1/auth/login", json={"email": "officer@deposafe.aicte.gov.in", "password": "Password@123"})
@@ -37,7 +71,11 @@ def get_officer_token() -> str:
     return res.json()["access_token"]
 
 def get_inst_token() -> str:
-    res = client.post("/api/v1/auth/login", json={"email": "institution1@vidya.edu.in", "password": "Password@123"})
+    db = SessionLocal()
+    u = db.query(User).filter(User.role == UserRole.INSTITUTION_USER).first()
+    email = u.email if u else "principal@national1.edu.in"
+    db.close()
+    res = client.post("/api/v1/auth/login", json={"email": email, "password": "Password@123"})
     assert res.status_code == 200
     return res.json()["access_token"]
 
@@ -123,7 +161,7 @@ def test_fdr_intelligence_graph_ecosystem_and_hero_detection():
     # Check for cross-institution shared FDR pattern
     patterns = graph_data["anomalous_relationships"]
     assert len(patterns) > 0
-    hero_pattern = next((p for p in patterns if p["fdr_number"] == "BNB-DEL-HERO-1000"), None)
+    hero_pattern = next((p for p in patterns if p.get("fdr_number") == "BNB-DEL-HERO-1000"), None)
     assert hero_pattern is not None
     assert hero_pattern["pattern"] == "CROSS_INSTITUTION_SHARED_FDR"
     assert hero_pattern["severity"] == "CRITICAL"
@@ -136,15 +174,20 @@ def test_api_endpoints_forensics_duplicates_and_risk_override():
     token = get_officer_token()
     headers = {"Authorization": f"Bearer {token}"}
 
+    db = SessionLocal()
+    hero = db.query(FDR).filter(FDR.fdr_number == "BNB-DEL-HERO-1000").first()
+    hero_id = hero.id if hero else 1
+    db.close()
+
     # 1. Inspect Duplicates API
-    res_dup = client.get("/api/v1/fdr/5/duplicates", headers=headers)
+    res_dup = client.get(f"/api/v1/fdr/{hero_id}/duplicates", headers=headers)
     assert res_dup.status_code == 200
     dup_data = res_dup.json()
     assert "has_collision" in dup_data
     assert dup_data["has_collision"] is True
 
     # 2. Digital Forensics API
-    res_forensics = client.get("/api/v1/fdr/5/forensics", headers=headers)
+    res_forensics = client.get(f"/api/v1/fdr/{hero_id}/forensics", headers=headers)
     assert res_forensics.status_code == 200
     forensics_data = res_forensics.json()
     assert "forensics" in forensics_data
@@ -161,7 +204,7 @@ def test_api_endpoints_forensics_duplicates_and_risk_override():
         "adjusted_score": 15.0,
         "justification": "Branch manager confirmed original physical instrument manually under official seal."
     }
-    res_override = client.post("/api/v1/fdr/5/override-risk", json=override_payload, headers=headers)
+    res_override = client.post(f"/api/v1/fdr/{hero_id}/override-risk", json=override_payload, headers=headers)
     assert res_override.status_code == 200
     override_resp = res_override.json()
     assert override_resp["review_priority_score"] == 15.0
@@ -170,5 +213,5 @@ def test_api_endpoints_forensics_duplicates_and_risk_override():
 
     # Verify unauthorized role cannot override risk
     inst_token = get_inst_token()
-    res_unauth = client.post("/api/v1/fdr/5/override-risk", json=override_payload, headers={"Authorization": f"Bearer {inst_token}"})
+    res_unauth = client.post(f"/api/v1/fdr/{hero_id}/override-risk", json=override_payload, headers={"Authorization": f"Bearer {inst_token}"})
     assert res_unauth.status_code == 403

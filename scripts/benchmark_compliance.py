@@ -47,7 +47,7 @@ def run_compliance_benchmark():
     print(f"\n[1/5] Active Baseline Rule Version: {active_rule.version_tag}")
     print(f"      Description: {active_rule.description}")
 
-    gt_path = os.path.join(PROJECT_ROOT, "data", "synthetic", "ground_truth.json")
+    gt_path = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].endswith(".json") else os.path.join(PROJECT_ROOT, "data", "synthetic", "ground_truth.json")
     with open(gt_path, "r") as f:
         gt_data = json.load(f)
 

@@ -213,6 +213,20 @@ def compute_review_priority(
         meta = latest_doc.forensic_metadata or {}
         has_tamper = meta.get("producer_flagged") or (meta.get("tampering_indicators") and len(meta["tampering_indicators"]) > 0)
 
+        if not has_tamper and latest_doc.file_path and os.path.exists(latest_doc.file_path) and latest_doc.file_path.lower().endswith(".pdf"):
+            try:
+                import fitz
+                pdoc = fitz.open(latest_doc.file_path)
+                anoms = DigitalForensicsAnalyzer.detect_metadata_anomalies(pdoc)
+                if anoms:
+                    has_tamper = True
+                    meta = meta or {}
+                    meta["producer_flagged"] = True
+                    meta["pdf_producer"] = anoms[0]
+                pdoc.close()
+            except Exception:
+                pass
+
         # Check for Photoshop / Canva metadata flag
         if has_tamper:
             score_contrib = w_forensic
@@ -349,6 +363,9 @@ def compute_review_priority(
                 "rule_reference": f"APH-INDICATOR-{r['indicator'].upper()}"
             }
             for r in contributing_reasons if r["status"] == "Flagged"
+        ] + [
+            f for f in (fdr.review_flags or [])
+            if isinstance(f, dict) and not any(r["indicator"].upper() in f.get("code", "") for r in contributing_reasons if r["status"] == "Flagged")
         ],
         "statutory_label": "Review priority indicator, not a fraud probability",
         "advisory_notice": "AI is advisory. Compliance is decided by explicit versioned rules. Officer verification required.",

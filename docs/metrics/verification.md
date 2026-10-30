@@ -12,10 +12,10 @@ Measured on sample instruments from `data/synthetic/ground_truth.json` seeded da
 
 | Metric | Measured Value | Standard / Target | Status |
 |:-------|:---------------|:------------------|:-------|
-| **Mean Verification Latency** | `2.24 ms` | < 150.0 ms | **PASSED** |
-| **P50 Latency (Median)** | `2.07 ms` | < 100.0 ms | **PASSED** |
-| **P90 Latency** | `2.52 ms` | < 250.0 ms | **PASSED** |
-| **P99 Latency** | `8.74 ms` | < 500.0 ms | **PASSED** |
+| **Mean Verification Latency** | `5.58 ms` | < 150.0 ms | **PASSED** |
+| **P50 Latency (Median)** | `5.03 ms` | < 100.0 ms | **PASSED** |
+| **P90 Latency** | `5.72 ms` | < 250.0 ms | **PASSED** |
+| **P99 Latency** | `24.92 ms` | < 500.0 ms | **PASSED** |
 | **Simulated Business Turnaround** | `2.5 days` | < 5 days | **PASSED** |
 
 ---
@@ -54,7 +54,7 @@ Every required behavior scenario was executed and verified during the benchmark:
 
 ### 4. Hero Case Cross-Document Reconciliation Result
 
-- **Target Instrument**: `BNB-DEL-HERO-1000` (FDR ID: `5`)
+- **Target Instrument**: `BNB-DEL-HERO-1000` (FDR ID: `1`)
 - **Institution**: National Institute of Technology & Science
 - **Illustrative Deposit Amount**: ₹10,00,000.00
 - **Cross-Document Reconciliation Table**:

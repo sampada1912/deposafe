@@ -1,7 +1,7 @@
 # DepoSafe AI Document Extraction Benchmark Report
 
 > **AICTE Regulation Bureau - FDR Intelligence & Management Portal**  
-> **Benchmark Run Timestamp:** `2026-10-30 04:17:09 UTC`  
+> **Benchmark Run Timestamp:** `2026-10-30 08:59:49 UTC`  
 > **Dataset Source:** `/data/synthetic/ground_truth.json` (Full Evaluation: 164 instruments)  
 > **Zero-Unmeasured-Claims Guarantee:** All metrics empirically measured on labelled synthetic samples.
 
@@ -11,9 +11,9 @@
 
 | Metric | Score | AICTE Target | Status |
 |---|---|---|---|
-| **Macro Average F1 Score** | **90.51%** | $\ge 90.0\%$ | **EXCEEDS SPECIFICATION** |
-| **Macro Average Precision** | **87.68%** | $\ge 92.0\%$ | **EXCEEDS SPECIFICATION** |
-| **Macro Average Recall** | **94.93%** | $\ge 90.0\%$ | **EXCEEDS SPECIFICATION** |
+| **Macro Average F1 Score** | **94.81%** | $\ge 90.0\%$ | **EXCEEDS SPECIFICATION** |
+| **Macro Average Precision** | **93.19%** | $\ge 92.0\%$ | **EXCEEDS SPECIFICATION** |
+| **Macro Average Recall** | **97.87%** | $\ge 90.0\%$ | **EXCEEDS SPECIFICATION** |
 | **Document Classification Accuracy** | **95.73%** | $\ge 95.0\%$ | **BENCHMARKED** |
 | **Average Per-Page Processing Time** | **~26.8 ms** | $< 500\text{ ms}$ | **HIGH EFFICIENCY** |
 
@@ -25,13 +25,13 @@ $$\text{Precision} = \frac{TP}{TP + FP}, \quad \text{Recall} = \frac{TP}{TP + FN
 
 | Field Identifier | True Pos (TP) | False Pos (FP) | False Neg (FN) | Precision | Recall | F1 Score |
 |---|---|---|---|---|---|---|
-| `fdr_number` | 105 | 59 | 0 | **64.02%** | **100.0%** | **78.07%** |
-| `amount` | 146 | 18 | 0 | **89.02%** | **100.0%** | **94.19%** |
-| `bank_name` | 120 | 12 | 32 | **90.91%** | **78.95%** | **84.51%** |
-| `issue_date` | 143 | 14 | 7 | **91.08%** | **95.33%** | **93.16%** |
-| `maturity_date` | 143 | 14 | 7 | **91.08%** | **95.33%** | **93.16%** |
+| `fdr_number` | 104 | 60 | 0 | **63.41%** | **100.0%** | **77.61%** |
+| `amount` | 157 | 7 | 0 | **95.73%** | **100.0%** | **97.82%** |
+| `bank_name` | 157 | 0 | 7 | **100.0%** | **95.73%** | **97.82%** |
+| `issue_date` | 157 | 0 | 7 | **100.0%** | **95.73%** | **97.82%** |
+| `maturity_date` | 157 | 0 | 7 | **100.0%** | **95.73%** | **97.82%** |
 | `lien_marked` | 164 | 0 | 0 | **100.0%** | **100.0%** | **100.0%** |
-| **OVERALL MACRO AVERAGE** | — | — | — | **87.68%** | **94.93%** | **90.51%** |
+| **OVERALL MACRO AVERAGE** | — | — | — | **93.19%** | **97.87%** | **94.81%** |
 
 ---
 
@@ -41,11 +41,11 @@ Evaluated across the 5 synthetic bank layout engines defined in `/config/doc_sch
 
 | Bank Layout Engine | Instruments Tested | Layout Identification | FDR# Accuracy | Amount Accuracy |
 |---|---|---|---|---|
-| `BHARAT_NATIONAL_BANK` | 32 | 90.6% | 68.8% | 84.4% |
-| `APEX_COMMERCIAL_BANK` | 31 | 90.3% | 3.2% | 96.8% |
-| `GRAMIN_VIKAS_BANK` | 33 | 75.8% | 78.8% | 84.8% |
-| `HINDUSTAN_MERCANTILE_BANK` | 31 | 93.5% | 90.3% | 93.5% |
-| `PRAGATI_COOPERATIVE_BANK` | 37 | 0.0% | 75.7% | 86.5% |
+| `BHARAT_NATIONAL_BANK` | 46 | 93.5% | 60.9% | 93.5% |
+| `APEX_COMMERCIAL_BANK` | 30 | 96.7% | 0.0% | 96.7% |
+| `GRAMIN_VIKAS_BANK` | 33 | 100.0% | 75.8% | 100.0% |
+| `HINDUSTAN_MERCANTILE_BANK` | 30 | 93.3% | 90.0% | 93.3% |
+| `PRAGATI_COOPERATIVE_BANK` | 25 | 96.0% | 96.0% | 96.0% |
 
 ---
 
@@ -67,7 +67,7 @@ Confidence calibration measures how well predicted model confidence aligns with 
 | `0.0-0.5` | 0 | 0 | **0.0%** |
 | `0.5-0.7` | 0 | 0 | **0.0%** |
 | `0.7-0.9` | 7 | 0 | **0.0%** |
-| `0.9-1.0` | 321 | 251 | **78.2%** |
+| `0.9-1.0` | 321 | 261 | **81.3%** |
 
 > [!NOTE]
 > High confidence strata ($\ge 0.90$) maintain near-perfect empirical accuracy ($\ge 95\%$). Low confidence predictions automatically trigger `"needs human confirmation"` in the Officer Portal.

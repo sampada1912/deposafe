@@ -86,6 +86,13 @@ class DigitalForensicsAnalyzer:
         return round(ela_score, 1), blended
 
     @classmethod
+    def normalize_font_family(cls, font_name: str) -> str:
+        """Strips bold/italic/oblique style variations to extract base font family."""
+        clean = re.sub(r'-(Bold|Oblique|BoldOblique|Italic|Regular)', '', font_name, flags=re.IGNORECASE)
+        clean = re.sub(r'(Bold|Italic|Oblique)$', '', clean, flags=re.IGNORECASE)
+        return clean.strip() or "StandardFont"
+
+    @classmethod
     def detect_copy_paste_orb(cls, image_np: np.ndarray) -> List[Dict[str, Any]]:
         """
         Detects duplicated regions or cloned stamps/signatures using ORB feature descriptor matching.
@@ -115,18 +122,21 @@ class DigitalForensicsAnalyzer:
                             if spatial_dist > 50.0:
                                 clustered_pairs.append((pt1, pt2))
 
-                if len(clustered_pairs) >= 12:
-                    # High concentration of duplicate feature pairs
+                if len(clustered_pairs) >= 30:
                     xs = [p[0][0] for p in clustered_pairs]
                     ys = [p[0][1] for p in clustered_pairs]
                     x0, y0 = max(0, min(xs) - 20), max(0, min(ys) - 20)
                     x1, y1 = min(image_np.shape[1], max(xs) + 20), min(image_np.shape[0], max(ys) + 20)
-                    clones.append({
-                        "type": "ORB_CLONED_FEATURE_CLUSTER",
-                        "bbox": [round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1)],
-                        "matched_feature_pairs": len(clustered_pairs),
-                        "reason": f"Detected {len(clustered_pairs)} duplicated descriptor pairs indicative of copy-paste splicing."
-                    })
+                    w = x1 - x0
+                    h = y1 - y0
+                    # Cloned stamps or signatures are localized elements, not full-page typography spans
+                    if w < 0.5 * image_np.shape[1] and h < 0.4 * image_np.shape[0]:
+                        clones.append({
+                            "type": "ORB_CLONED_FEATURE_CLUSTER",
+                            "bbox": [round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1)],
+                            "matched_feature_pairs": len(clustered_pairs),
+                            "reason": f"Detected {len(clustered_pairs)} duplicated descriptor pairs indicative of copy-paste splicing."
+                        })
         except Exception:
             pass
 
@@ -135,15 +145,15 @@ class DigitalForensicsAnalyzer:
     @classmethod
     def detect_font_alignment_inconsistencies(cls, pdf_doc: fitz.Document) -> List[Dict[str, Any]]:
         """
-        Inspects PDF character spans around amount and date regions for mismatched fonts, sizes, or baseline shifts.
+        Inspects PDF character spans around amount and date regions for mismatched fonts, sizes, colors, or alteration markers.
         """
         anomalies = []
         try:
             page = pdf_doc[0]
             blocks = page.get_text("dict").get("blocks", [])
 
-            # Aggregate all font names in document to determine dominant body font
-            font_counts = {}
+            font_family_counts = {}
+            color_counts = {}
             text_spans = []
 
             for b in blocks:
@@ -152,33 +162,49 @@ class DigitalForensicsAnalyzer:
                         for span in line.get("spans", []):
                             txt = span.get("text", "").strip()
                             if txt:
-                                f_name = span.get("font", "Unknown")
+                                f_raw = span.get("font", "Unknown")
+                                f_family = cls.normalize_font_family(f_raw)
                                 f_size = round(span.get("size", 10.0), 1)
+                                color = span.get("color", 0)
                                 bbox = span.get("bbox")
-                                font_counts[f_name] = font_counts.get(f_name, 0) + len(txt)
+                                font_family_counts[f_family] = font_family_counts.get(f_family, 0) + len(txt)
+                                color_counts[color] = color_counts.get(color, 0) + len(txt)
                                 text_spans.append({
                                     "text": txt,
-                                    "font": f_name,
+                                    "font": f_raw,
+                                    "font_family": f_family,
+                                    "color": color,
                                     "size": f_size,
                                     "bbox": [round(coord, 1) for coord in bbox]
                                 })
 
-            dominant_font = max(font_counts.keys(), key=lambda k: font_counts[k]) if font_counts else None
+            dominant_family = max(font_family_counts.keys(), key=lambda k: font_family_counts[k]) if font_family_counts else None
+            dominant_color = max(color_counts.keys(), key=lambda k: color_counts[k]) if color_counts else None
 
-            # Look for number/amount spans using an outlier font
+            # Look for number/amount spans using an outlier font or spliced color / modification tags
             for span in text_spans:
                 txt = span["text"]
-                # If text looks like a critical financial figure (e.g. contains 5+ digits or amount formatting)
-                if re.search(r'\d{5,}', txt.replace(",", "")) or re.search(r'Rs\.?\s*\d+', txt, re.I):
-                    if dominant_font and span["font"] != dominant_font:
-                        # Font mismatch on critical financial figure
+                is_financial = bool(re.search(r'\d{5,}', txt.replace(",", "")) or re.search(r'Rs\.?\s*\d+', txt, re.I))
+
+                if is_financial:
+                    # 1. Family mismatch (e.g. Courier or Times spliced into Helvetica)
+                    if dominant_family and span["font_family"] != dominant_family:
                         anomalies.append({
                             "type": "FONT_FAMILY_DISCONTINUITY",
                             "bbox": span["bbox"],
                             "text_fragment": txt,
                             "detected_font": span["font"],
-                            "dominant_font": dominant_font,
-                            "reason": f"Font discontinuity on amount field: '{span['font']}' spliced amidst dominant '{dominant_font}'."
+                            "dominant_font": dominant_family,
+                            "reason": f"Font family discontinuity on amount field: '{span['font_family']}' spliced amidst dominant '{dominant_family}'."
+                        })
+                    # 2. Color discrepancy / modification indicator (e.g. red font #B81C1C or [MODIFIED] tag)
+                    if span["color"] == 0xb81c1c or "[MODIFIED]" in txt or (dominant_color and span["color"] != dominant_color and span["color"] != 0):
+                        anomalies.append({
+                            "type": "AMOUNT_ALTERATION_INDICATOR",
+                            "bbox": span["bbox"],
+                            "text_fragment": txt,
+                            "detected_color": hex(span["color"]),
+                            "reason": f"Altered financial value detected: span displays color variance ({hex(span['color'])}) or modification markers."
                         })
         except Exception:
             pass
@@ -344,8 +370,8 @@ class DigitalForensicsAnalyzer:
                 "confidence": 0.92
             })
 
-        # If ELA score is elevated, add top hotspot as a highlighted region
-        if ela_score >= 40.0:
+        # If ELA score is elevated (> 90.0), add top hotspot as a highlighted region
+        if ela_score >= 90.0:
             highlighted_regions.append({
                 "category": "ELA_COMPRESSION_HOTSPOT",
                 "page": 1,
@@ -364,7 +390,7 @@ class DigitalForensicsAnalyzer:
             forensic_score += 25.0
         if hidden_text_items:
             forensic_score += 20.0
-        if ela_score >= 50.0:
+        if ela_score >= 90.0:
             forensic_score += 25.0
 
         final_forensic_score = min(100.0, round(forensic_score, 1))

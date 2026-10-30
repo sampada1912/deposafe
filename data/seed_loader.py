@@ -24,11 +24,12 @@ from backend.app.rules.compliance_engine import get_active_rule
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 GROUND_TRUTH_PATH = os.path.join(BASE_DIR, "data", "synthetic", "ground_truth.json")
 
-def load_synthetic_data_into_db(db: Session):
-    print("Loading synthetic dataset from ground_truth.json into database...")
+def load_synthetic_data_into_db(db: Session, gt_path: str = None):
+    target_gt = os.path.abspath(gt_path) if gt_path else GROUND_TRUTH_PATH
+    print(f"Loading synthetic dataset from {target_gt} into database...")
     Base.metadata.create_all(bind=engine)
 
-    with open(GROUND_TRUTH_PATH, "r") as f:
+    with open(target_gt, "r") as f:
         gt = json.load(f)
 
     # 1. Initialize Banks Whitelist
@@ -181,22 +182,25 @@ def load_synthetic_data_into_db(db: Session):
 
             for d in f.get("documents", []):
                 src_path = d.get("file_path")
-                if src_path and os.path.exists(src_path):
-                    dst_path = os.path.join(fdr_storage_dir, d["file_name"])
-                    shutil.copyfile(src_path, dst_path)
+                if src_path:
+                    if not os.path.isabs(src_path):
+                        src_path = os.path.join(BASE_DIR, src_path)
+                    if os.path.exists(src_path):
+                        dst_path = os.path.join(fdr_storage_dir, d["file_name"])
+                        shutil.copyfile(src_path, dst_path)
 
-                    doc_entry = FDRDocument(
-                        fdr_id=fdr_rec.id,
-                        version=1,
-                        file_name=d["file_name"],
-                        file_path=dst_path,
-                        storage_path=dst_path,
-                        file_hash_sha256=d.get("sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
-                        perceptual_hash=d.get("phash"),
-                        doc_type=d.get("doc_type", "FDR_CERTIFICATE"),
-                        ocr_status="COMPLETED"
-                    )
-                    db.add(doc_entry)
+                        doc_entry = FDRDocument(
+                            fdr_id=fdr_rec.id,
+                            version=1,
+                            file_name=d["file_name"],
+                            file_path=dst_path,
+                            storage_path=dst_path,
+                            file_hash_sha256=d.get("sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
+                            perceptual_hash=d.get("phash"),
+                            doc_type=d.get("doc_type", "FDR_CERTIFICATE"),
+                            ocr_status="COMPLETED"
+                        )
+                        db.add(doc_entry)
 
             # Initialize 4-level Provenance
             has_mismatch = ("maturity_mismatch_with_bank_letter" in issues or "amount_edited" in issues)
@@ -256,9 +260,11 @@ def load_synthetic_data_into_db(db: Session):
     print(f"Successfully seeded database with {len(gt['institutions'])} institutions and {len(gt['fdrs'])} FDRs!")
 
 if __name__ == "__main__":
+    import sys
+    gt_file = sys.argv[1] if len(sys.argv) > 1 else None
     db = SessionLocal()
     try:
-        load_synthetic_data_into_db(db)
+        load_synthetic_data_into_db(db, gt_path=gt_file)
     finally:
         db.close()
 

@@ -33,7 +33,7 @@ from backend.app.services.reconciliation_service import CrossDocumentReconciler
 from backend.app.services.risk_engine import compute_review_priority
 from backend.app.services.relationship_graph import build_ecosystem_networkx_graph
 
-GROUND_TRUTH_PATH = os.path.join(PROJECT_ROOT, "data", "synthetic", "ground_truth.json")
+GROUND_TRUTH_PATH = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].endswith(".json") else os.path.join(PROJECT_ROOT, "data", "synthetic", "ground_truth.json")
 OUTPUT_METRICS_PATH = os.path.join(PROJECT_ROOT, "docs", "metrics", "anomaly.md")
 FORENSICS_ASSET_DIR = os.path.join(PROJECT_ROOT, "docs", "assets", "forensics")
 
@@ -61,6 +61,8 @@ def run_anomaly_benchmark():
         if f_entry and f_entry.get("documents"):
             doc_info = f_entry["documents"][0]
             file_p = doc_info.get("file_path")
+            if file_p and not os.path.isabs(file_p):
+                file_p = os.path.join(PROJECT_ROOT, file_p)
             if file_p and os.path.exists(file_p):
                 heatmap_filename = f"ela_tamper_sample_{s_id}.jpg"
                 out_p = os.path.join(FORENSICS_ASSET_DIR, heatmap_filename)
@@ -140,7 +142,12 @@ def run_anomaly_benchmark():
         pred_tamper = False
         if latest_doc and latest_doc.file_path and os.path.exists(latest_doc.file_path):
             f_res = DigitalForensicsAnalyzer.analyze_document(latest_doc.file_path, latest_doc.id)
-            pred_tamper = bool(f_res.get("metadata_anomalies") or f_res.get("ela_score", 0) >= 35.0 or f_res.get("highlighted_regions"))
+            pred_tamper = bool(
+                f_res.get("metadata_anomalies") or
+                f_res.get("font_inconsistencies") or
+                f_res.get("copy_paste_clones") or
+                f_res.get("hidden_text_items")
+            )
 
         if has_gt_tamper and pred_tamper:
             metrics["forensic_tampering"]["tp"] += 1
@@ -202,7 +209,7 @@ def run_anomaly_benchmark():
     hero_risk = compute_review_priority(db, hero_fdr, hero_inst)
     hero_score = hero_risk["review_priority_score"]
     hero_reasons = hero_risk["contributing_reasons"]
-    hero_flag_codes = [f["code"] for f in hero_risk["flags"]]
+    hero_flag_codes = [f.get("code", "") if isinstance(f, dict) else str(f) for f in hero_risk.get("flags", [])]
 
     hero_dup_flag = any("DUPLICATE" in c or "CROSS" in c for c in hero_flag_codes)
     hero_mat_flag = any("MATURITY" in c for c in hero_flag_codes)

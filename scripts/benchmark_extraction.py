@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from backend.app.services.document_pipeline import run_document_ai_pipeline
 
-GROUND_TRUTH_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../data/synthetic/ground_truth.json"))
+GROUND_TRUTH_PATH = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].endswith(".json") else os.path.abspath(os.path.join(os.path.dirname(__file__), "../data/synthetic/ground_truth.json"))
 OUTPUT_METRICS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../docs/metrics/extraction.md"))
 
 def compute_metrics(tp: int, fp: int, fn: int) -> Dict[str, float]:
@@ -66,6 +66,8 @@ def run_extraction_benchmark(max_samples: int = 164):
             continue
         primary_doc = docs[0]
         fdr_file = primary_doc.get("file_path")
+        if fdr_file and not os.path.isabs(fdr_file):
+            fdr_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", fdr_file))
         if not fdr_file or not os.path.exists(fdr_file):
             continue
 

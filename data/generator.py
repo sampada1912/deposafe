@@ -423,8 +423,20 @@ def render_utility_bill(out_path, institution_name):
 
 # --- Main Dataset Generation Logic ---
 
-def generate_phase2_synthetic_dataset():
-    print(f"=== Starting Phase 2 Synthetic Dataset Generation (Seed: {SEED}) ===")
+def generate_phase2_synthetic_dataset(seed=42, output_dir=None):
+    random.seed(seed)
+    np.random.seed(seed)
+
+    target_synthetic_dir = os.path.abspath(output_dir) if output_dir else os.path.join(BASE_DIR, "data", "synthetic")
+    docs_dir = os.path.join(target_synthetic_dir, "documents")
+    institutions_dir = os.path.join(target_synthetic_dir, "institutions")
+    ground_truth_path = os.path.join(target_synthetic_dir, "ground_truth.json")
+
+    os.makedirs(docs_dir, exist_ok=True)
+    os.makedirs(institutions_dir, exist_ok=True)
+
+    print(f"=== Starting Phase 2 Synthetic Dataset Generation (Seed: {seed}) ===")
+    print(f"Target Directory: {target_synthetic_dir}")
     
     institutions_data = []
     fdrs_data = []
@@ -440,13 +452,14 @@ def generate_phase2_synthetic_dataset():
 
     # Global pool of duplicate FDR numbers for testing collision
     duplicate_pool = [
+        {"bank_name": "Bharat National Bank", "fdr_number": "BNB-DEL-HERO-1000"},
         {"bank_name": "Bharat National Bank", "fdr_number": "BNB-DUP-99112233"},
         {"bank_name": "Apex Commercial Bank", "fdr_number": "APEX-COLLIDE-778899"},
         {"bank_name": "Gramin Vikas Bank", "fdr_number": "GVB-SHARED-445566"},
     ]
 
     # Pre-generated shared document byte hash for exact SHA-256 reuse
-    shared_pdf_template_path = os.path.join(DOCS_DIR, "SHARED_REUSED_INSTRUMENT.pdf")
+    shared_pdf_template_path = os.path.join(docs_dir, "SHARED_REUSED_INSTRUMENT.pdf")
     render_fdr_pdf(
         shared_pdf_template_path,
         "BHARAT_NATIONAL_BANK",
@@ -584,8 +597,6 @@ def generate_phase2_synthetic_dataset():
                     mat_d = issue_d - timedelta(days=180) # Chronological inversion
                 if "amount_edited" in injected_issues:
                     pixel_tamper = True
-                if "maturity_mismatch_with_bank_letter" in injected_issues:
-                    bank_letter_mat = mat_d - timedelta(days=730) # 2 year gap
                 if "metadata_anomaly" in injected_issues:
                     tamper_meta = True
                 if "wrong_bank_name" in injected_issues:
@@ -593,7 +604,21 @@ def generate_phase2_synthetic_dataset():
                     bank_info = BANK_DETAILS[layout_code]
                 if "duplicate_fdr_number_cross_institution" in injected_issues:
                     dup = duplicate_pool[i % len(duplicate_pool)]
-                    bank_info = BANK_DETAILS["BHARAT_NATIONAL_BANK"]
+                    for l_k, b_v in BANK_DETAILS.items():
+                        if b_v["name"] == dup["bank_name"]:
+                            layout_code = l_k
+                            bank_info = b_v
+                            break
+                    fdr_num = dup["fdr_number"]
+                    is_duplicate = True
+                if "same_bank_and_number_different_file" in injected_issues:
+                    # Same bank and same FDR number, but distinct newly generated file
+                    dup = duplicate_pool[(i + 1) % len(duplicate_pool)]
+                    for l_k, b_v in BANK_DETAILS.items():
+                        if b_v["name"] == dup["bank_name"]:
+                            layout_code = l_k
+                            bank_info = b_v
+                            break
                     fdr_num = dup["fdr_number"]
                     is_duplicate = True
                 if "expired_fdr" in injected_issues:
@@ -606,11 +631,30 @@ def generate_phase2_synthetic_dataset():
                 issue_d = date(2019 + (f_idx * 3), 4, 15)
                 mat_d = date(2022 + (f_idx * 3), 4, 15)
 
+            # Reconcile same_file_reused metadata with the shared template file
+            if "same_file_reused" in injected_issues:
+                # The shared template instrument has fixed metadata on disk
+                fdr_num = "BNB-SHARED-BYTE-777"
+                amount = 3500000.0
+                issue_d = date(2024, 1, 15)
+                mat_d = date(2032, 1, 15)
+                bank_info = BANK_DETAILS["BHARAT_NATIONAL_BANK"]
+                layout_code = "BHARAT_NATIONAL_BANK"
+                is_duplicate = True
+
+            # Default confirmation letter maturity date to match certificate
+            if is_hero_inst and f_idx == 0:
+                bank_letter_mat = date(2026, 11, 15)
+            else:
+                bank_letter_mat = mat_d
+                if "maturity_mismatch_with_bank_letter" in injected_issues:
+                    bank_letter_mat = mat_d - timedelta(days=730) # 2 year gap
+
             # File Paths
             pdf_filename = f"FDR_{fdr_id}_{layout_code}.pdf"
             jpg_filename = f"FDR_{fdr_id}_{layout_code}.jpg"
-            pdf_path = os.path.join(DOCS_DIR, pdf_filename)
-            jpg_path = os.path.join(DOCS_DIR, jpg_filename)
+            pdf_path = os.path.join(docs_dir, pdf_filename)
+            jpg_path = os.path.join(docs_dir, jpg_filename)
 
             # Generate PDF
             if "wrong_document_type_uploaded" in injected_issues:
@@ -659,7 +703,7 @@ def generate_phase2_synthetic_dataset():
 
             # Render bank confirmation letter for this FDR
             letter_pdf_filename = f"CONF_LETTER_{fdr_id}.pdf"
-            letter_pdf_path = os.path.join(DOCS_DIR, letter_pdf_filename)
+            letter_pdf_path = os.path.join(docs_dir, letter_pdf_filename)
             has_letter_mismatch = "maturity_mismatch_with_bank_letter" in injected_issues
             render_bank_confirmation_letter(
                 letter_pdf_path,
@@ -690,15 +734,15 @@ def generate_phase2_synthetic_dataset():
                 "documents": [
                     {
                         "file_name": pdf_filename,
-                        "file_path": pdf_path,
-                        "image_path": jpg_path,
+                        "file_path": os.path.relpath(pdf_path, BASE_DIR),
+                        "image_path": os.path.relpath(jpg_path, BASE_DIR),
                         "doc_type": "FDR_CERTIFICATE",
                         "sha256": sha256_hash,
                         "phash": phash_str
                     },
                     {
                         "file_name": letter_pdf_filename,
-                        "file_path": letter_pdf_path,
+                        "file_path": os.path.relpath(letter_pdf_path, BASE_DIR),
                         "doc_type": "BANK_CONFIRMATION_LETTER"
                     }
                 ],
@@ -740,11 +784,11 @@ def generate_phase2_synthetic_dataset():
         "fdrs": fdrs_data
     }
 
-    with open(GROUND_TRUTH_PATH, "w") as f:
+    with open(ground_truth_path, "w") as f:
         json.dump(ground_truth, f, indent=2)
 
     print(f"Generated {len(institutions_data)} institutions and {len(fdrs_data)} FDR instruments.")
-    print(f"Ground truth catalog saved to: {GROUND_TRUTH_PATH}")
+    print(f"Ground truth catalog saved to: {ground_truth_path}")
 
     # Generate Contact Sheet Image
     generate_contact_sheet(fdrs_data)
@@ -816,4 +860,14 @@ def generate_contact_sheet(fdrs_data):
     print(f"Contact sheet saved successfully to: {CONTACT_SHEET_PATH}")
 
 if __name__ == "__main__":
-    generate_phase2_synthetic_dataset()
+    import argparse
+    parser = argparse.ArgumentParser(description="DepoSafe Synthetic Dataset Generator")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed (default 42)")
+    parser.add_argument("--outdir", type=str, default=None, help="Output directory (default data/synthetic)")
+    parser.add_argument("--heldout", action="store_true", help="Generate held-out dataset in data/synthetic_heldout (seed=1042)")
+    args = parser.parse_args()
+
+    if args.heldout:
+        generate_phase2_synthetic_dataset(seed=1042, output_dir="data/synthetic_heldout")
+    else:
+        generate_phase2_synthetic_dataset(seed=args.seed, output_dir=args.outdir)

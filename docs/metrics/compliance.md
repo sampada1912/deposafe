@@ -16,9 +16,9 @@ Evaluated on `164` instruments under baseline version `APH-2024-27.v1`:
 
 | Rule Type | Handbook Clause | Outcome: Compliant | Outcome: Non-Compliant | Outcome: N/A | Deterministic Accuracy |
 |:---|:---|:---|:---|:---|:---|
-| **`min_amount`** | APH Chapter I/II [Placeholder] | `163` | `1` | `0` | **100.0% (Deterministic)** |
+| **`min_amount`** | APH Chapter I/II [Placeholder] | `159` | `5` | `0` | **100.0% (Deterministic)** |
 | **`validity_until`** | APH Chapter I/II [Placeholder] | `164` | `0` | `0` | **100.0% (Deterministic)** |
-| **`bank_whitelist`** | APH Chapter I/II [Placeholder] | `101` | `63` | `0` | **100.0% (Deterministic)** |
+| **`bank_whitelist`** | APH Chapter I/II [Placeholder] | `106` | `58` | `0` | **100.0% (Deterministic)** |
 | **`required_document`** | APH Chapter I/II [Placeholder] | `164` | `0` | `0` | **100.0% (Deterministic)** |
 | **`date_logic`** | APH Chapter I/II [Placeholder] | `153` | `11` | `0` | **100.0% (Deterministic)** |
 | **`release_condition`** | APH Chapter I/II [Placeholder] | `0` | `0` | `164` | **100.0% (Deterministic)** |
@@ -31,11 +31,11 @@ Simulated transition from `APH-2024-27.v1` to `APH-2025-26.v2` (Deposit amounts 
 
 | Impact Metric | Measured Value | Statutory Safeguard |
 |:---|:---|:---|
-| **Active Instruments Evaluated** | `169` | Complete registry scan |
-| **Previously Compliant Instruments** | `83` | Baseline cohorts |
-| **Flipped Compliant &rarr; Non-Compliant** | **`83`** | High-risk transition cohort |
+| **Active Instruments Evaluated** | `164` | Complete registry scan |
+| **Previously Compliant Instruments** | `99` | Baseline cohorts |
+| **Flipped Compliant &rarr; Non-Compliant** | **`99`** | High-risk transition cohort |
 | **Flip Impact Rate** | **`100.0%`** | Projected regulatory friction |
-| **Affected Institutions** | **`63`** | Target group for advance notice |
+| **Affected Institutions** | **`69`** | Target group for advance notice |
 | **Historical Decisions Preserved** | **`328` records** | **100.0% (Zero retrospective modification)** |
 
 #### Sample Impacted Instruments Flipped to Non-Compliant:
@@ -46,17 +46,17 @@ Simulated transition from `APH-2024-27.v1` to `APH-2025-26.v2` (Deposit amounts 
 | `APEX-PUN-1004` | Aryavrat College of Engineering | Punjab | ₹ 3,500,000 | 96 mo | Statutory deficit of ₹ 500,000.00 detected against handbook requirement ₹ 4,000,000.00.; Tenure 96 months is below prescribed lock-in of 120 months. |
 | `HMBL-PUN-1006` | Aryavrat College of Engineering | Punjab | ₹ 3,500,000 | 96 mo | Statutory deficit of ₹ 500,000.00 detected against handbook requirement ₹ 4,000,000.00.; Tenure 96 months is below prescribed lock-in of 120 months. |
 | `HMBL-HAR-1008` | Vidya Polytechnic College | Haryana | ₹ 1,500,000 | 96 mo | Statutory deficit of ₹ 500,000.00 detected against handbook requirement ₹ 2,000,000.00.; Tenure 96 months is below prescribed lock-in of 120 months. |
-| `HMBL-UTT-1010` | Saraswati Institute of Management Studies | Uttar Pradesh | ₹ 1,500,000 | 96 mo | Statutory deficit of ₹ 500,000.00 detected against handbook requirement ₹ 2,000,000.00.; Tenure 96 months is below prescribed lock-in of 120 months. |
+| `BNB-SHARED-BYTE-777` | Vidya Polytechnic College | Haryana | ₹ 3,500,000 | 96 mo | Tenure 96 months is below prescribed lock-in of 120 months. |
 
 ---
 
 ### 3. Institution-Level Compliance Scoring
 
-- **Sample College**: `Vidya Institute of Technology & Science` (AICTE ID: `1-3324567891`)
+- **Sample College**: `National Institute of Technology & Science` (AICTE ID: `1-1000000000`)
 - **State / Category**: Delhi | Engineering & Technology
 - **Active Rule Applied**: `APH-2024-27.v1`
-- **Aggregated Compliance Score**: **`75.0%`**
-- **Total Instruments**: `2` (Compliant: `0`, Deficit: `1`)
+- **Aggregated Compliance Score**: **`81.7%`**
+- **Total Instruments**: `3` (Compliant: `1`, Deficit: `2`)
 
 ---
 

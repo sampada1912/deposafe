@@ -55,6 +55,8 @@ def evaluate_extractor_on_held_out(limit: int = 25) -> Dict[str, Any]:
         if not docs:
             continue
         fdr_file = docs[0].get("file_path")
+        if fdr_file and not os.path.isabs(fdr_file):
+            fdr_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", fdr_file))
         if not fdr_file or not os.path.exists(fdr_file):
             continue
 
